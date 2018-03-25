@@ -1,4 +1,3 @@
-// build
 package plock
 
 import "sync/atomic"

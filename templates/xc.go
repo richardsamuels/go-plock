@@ -52,6 +52,7 @@ func main() {
 				fmt.Printf("Starting build for %s-%s\n", OS, arch)
 				if err := cmd.Run(); err != nil {
 					fmt.Printf("problem building %s: %v\nOutput:\n%s\n", output, err, string(out.Bytes()))
+					ret = 1
 				}
 				atomic.AddUint32(&count, ^(uint32(0)))
 			}(OS, arch)

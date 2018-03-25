@@ -18,7 +18,6 @@ before_script:
 script:
   - make
   - make lint
-  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then make xc; fi
 
 matrix:
   allow_failures:
