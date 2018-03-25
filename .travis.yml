@@ -12,7 +12,7 @@ go:
   - master
 
 install:
-  - go get -t -v ./...
+  - go get -t -v .
 
 before_script:
   - gometalinter --force --install
