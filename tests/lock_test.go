@@ -39,17 +39,17 @@ func locktest(thr uint, d *locktestData, t *testing.T) {
 		d.m.RUnlock()
 
 		if (loop & 0xFF) >= d.readRatio {
-			//d.m.WLock()
+			d.m.WLock()
 			d.shared |= (1 << thr)
-			//d.m.WUnlock()
+			d.m.WUnlock()
 
-			//d.m.SLock()
+			d.m.SLock()
 			if (d.shared & (1 << thr)) == 0 {
 				t.Errorf("thr=%d shared=0x%08x : unexpected 0\n", thr, d.shared)
 			}
-			//d.m.SToW()
+			d.m.SToW()
 			d.shared &= ^(1 << thr)
-			//d.m.WUnlock()
+			d.m.WUnlock()
 		}
 
 		d.m.RLock()
