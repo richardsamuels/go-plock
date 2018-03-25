@@ -2,7 +2,6 @@ sudo: false
 language: go
 os:
   - linux
-  - windows
   - osx
 
 go:
