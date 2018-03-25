@@ -2,7 +2,6 @@ package plock
 
 import (
 	"fmt"
-	"math/rand"
 	"testing"
 )
 
@@ -17,8 +16,8 @@ func TestSubUint64(t *testing.T) {
 	}
 
 	for i := 0; i < n; i++ {
-		base := rand.Uint64()
-		delta := rand.Uint64()
+		base := randUint64()
+		delta := randUint64()
 
 		expected := base - delta
 		msg := fmt.Sprintf("expected %d - %d to be %d", base, delta, expected)
@@ -40,8 +39,8 @@ func TestXADD64(t *testing.T) {
 	}
 
 	for i := 0; i < n; i++ {
-		base := rand.Uint64()
-		delta := rand.Uint64()
+		base := randUint64()
+		delta := randUint64()
 
 		expected := base
 		r := xadd64(&base, delta)
