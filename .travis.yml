@@ -11,10 +11,8 @@ go:
   - 1.10.x
   - master
 
-install:
-  - go get -t -v .
-
 before_script:
+  - go get -u github.com/alecthomas/gometalinter
   - gometalinter --force --install
 
 script:
