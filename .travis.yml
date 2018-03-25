@@ -1,0 +1,29 @@
+sudo: false
+language: go
+os:
+  - linux
+  - windows
+  - osx
+
+go:
+  - 1.7.x
+  - 1.8.x
+  - 1.9.x
+  - 1.10.x
+  - master
+
+install:
+  - go get -t -v ./...
+
+before_script:
+  - gometalinter --force --install
+
+script:
+  - make
+  - make lint
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then make xc; fi
+
+matrix:
+  allow_failures:
+    - go: master
+  fast_finish: true

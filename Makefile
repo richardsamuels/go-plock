@@ -1,5 +1,9 @@
 all: build test
 
+lint:
+	go get -u github.com/alecthomas/gometalinter
+	${GOPATH}/bin/gometalinter . --disable="golint" --disable="gocyclo" --disable="goconst"
+
 build:
 	go generate
 	go build .
