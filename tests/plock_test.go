@@ -1,9 +1,6 @@
-// build +go1.7
-
 package plock_test
 
 import (
-	"context"
 	"fmt"
 	"math/rand"
 	"strings"
@@ -12,6 +9,7 @@ import (
 	"time"
 
 	"github.com/richardsamuels/go-plock"
+	"golang.org/x/net/context"
 )
 
 func TestPMutexCanObtainRLock(t *testing.T) {
