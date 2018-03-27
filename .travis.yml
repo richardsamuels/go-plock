@@ -12,9 +12,10 @@ go:
   - 1.10.x
   - master
 
-before_script:
+install:
   - go get -u github.com/alecthomas/gometalinter
   - gometalinter --force --install
+  - go get -u "golang.org/x/net/context"
 
 script:
   - make isuptodate
