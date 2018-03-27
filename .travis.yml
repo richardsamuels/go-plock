@@ -5,6 +5,7 @@ os:
   - osx
 
 go:
+  - 1.6.x
   - 1.7.x
   - 1.8.x
   - 1.9.x
@@ -16,6 +17,7 @@ before_script:
   - gometalinter --force --install
 
 script:
+  - make isuptodate
   - make
   - make lint
 
