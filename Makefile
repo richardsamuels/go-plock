@@ -6,7 +6,7 @@ lint:
 
 isuptodate:
 	go generate
-	git diff --exit-code > /dev/null 2>/dev/null
+	git diff --exit-code "plockimpl_*.go" > /dev/null 2>/dev/null
 
 build:
 	go generate
