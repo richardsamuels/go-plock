@@ -24,7 +24,9 @@ install:
 
 script:
   - make isuptodate
-  - make
+  - make build
+  - if [[ $TRAVIS_GOARCH == "amd64" ]] make race; fi
+  - make test
   - make lint
 
 matrix:
