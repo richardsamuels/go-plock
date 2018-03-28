@@ -11,9 +11,16 @@ go:
   - 1.10.x
   - master
 
+env:
+  matrix:
+    - TRAVIS_GOARCH=amd64
+    - TRAVIS_GOARCH=386
+
 install:
   - go get -u github.com/alecthomas/gometalinter
   - gometalinter --force --install
+  - export GOARCH=$TRAVIS_GOARCH
+  - go env
 
 script:
   - make isuptodate
