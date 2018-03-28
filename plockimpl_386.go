@@ -27,9 +27,9 @@ func (p *PMutex) String() string {
 		return addr + " U"
 	}
 
-	hasWriter := v&PLOCK32_WL_ANY != 0
-	hasSeeker := v&PLOCK32_SL_ANY != 0
-	hasReader := v&PLOCK32_RL_ANY != 0
+	hasWriter := v&plock32WLAny != 0
+	hasSeeker := v&plock32SLAny != 0
+	hasReader := v&plock32RLAny != 0
 
 	numReaders := (v << leftShiftVal) >> rightShiftVal
 	if hasWriter && !hasSeeker && !hasReader {
@@ -66,8 +66,8 @@ func (p *PMutex) String() string {
 
 //go:nosplit
 func (p *PMutex) tryRLock() bool {
-	const setR = PLOCK32_RL_1
-	const maskR = PLOCK32_WL_ANY
+	const setR = plock32RL1
+	const maskR = plock32WLAny
 
 	// Since all writes to this value are atomic, load is unnecessary,
 	// but it makes the race detector happy
@@ -93,21 +93,21 @@ func (p *PMutex) RLock() {
 }
 
 func (p *PMutex) RUnlock() {
-	const val = PLOCK32_RL_1
+	const val = plock32RL1
 	_ = subUint32(&p.lock, val)
 }
 
 func (p *PMutex) tryRToA() bool {
-	plr := atomic.LoadUint32(&p.lock) & PLOCK32_SL_ANY
+	plr := atomic.LoadUint32(&p.lock) & plock32SLAny
 	if plr == 0 {
-		plr = xadd32(&p.lock, PLOCK32_WL_1-PLOCK32_RL_1)
+		plr = xadd32(&p.lock, plock32WL1-plock32RL1)
 		for {
-			if plr&PLOCK32_SL_ANY != 0 {
-				_ = subUint32(&p.lock, PLOCK32_WL_1-PLOCK32_RL_1)
+			if plr&plock32SLAny != 0 {
+				_ = subUint32(&p.lock, plock32WL1-plock32RL1)
 				break
 			}
 
-			plr &= PLOCK32_RL_ANY
+			plr &= plock32RLAny
 			if plr != 0 {
 				break
 			}
@@ -129,8 +129,8 @@ func (p *PMutex) RToA() {
 }
 
 func (p *PMutex) tryRToW() bool {
-	const setR = PLOCK32_WL_1 | PLOCK32_SL_1
-	const maskR = PLOCK32_WL_ANY | PLOCK32_SL_ANY
+	const setR = plock32WL1 | plock32SL1
+	const maskR = plock32WLAny | plock32SLAny
 	var plr uint32
 	for {
 		plr = xadd32(&p.lock, setR)
@@ -142,7 +142,7 @@ func (p *PMutex) tryRToW() bool {
 		}
 
 		for plr != 0 {
-			plr = atomic.LoadUint32(&p.lock) - (PLOCK32_WL_1 | PLOCK32_SL_1 | PLOCK32_RL_1) //nolint:megacheck
+			plr = atomic.LoadUint32(&p.lock) - (plock32WL1 | plock32SL1 | plock32RL1) //nolint:megacheck
 			break
 		}
 	}
@@ -162,10 +162,10 @@ func (p *PMutex) RToW() {
 
 func (p *PMutex) tryRToS() bool {
 	plr := atomic.LoadUint32(&p.lock)
-	if plr&(PLOCK32_WL_ANY|PLOCK32_SL_ANY) == 0 {
-		plr = xadd32(&p.lock, PLOCK32_SL_1) & (PLOCK32_WL_ANY | PLOCK32_SL_ANY)
+	if plr&(plock32WLAny|plock32SLAny) == 0 {
+		plr = xadd32(&p.lock, plock32SL1) & (plock32WLAny | plock32SLAny)
 		if plr != 0 {
-			_ = subUint32(&p.lock, PLOCK32_SL_1)
+			_ = subUint32(&p.lock, plock32SL1)
 		}
 
 	}
@@ -185,8 +185,8 @@ func (p *PMutex) RToS() {
 
 //go:nosplit
 func (p *PMutex) tryWLock() bool {
-	const setR = PLOCK32_WL_1 | PLOCK32_SL_1 | PLOCK32_RL_1
-	const maskR = PLOCK32_WL_ANY | PLOCK32_SL_ANY
+	const setR = plock32WL1 | plock32SL1 | plock32RL1
+	const maskR = plock32WLAny | plock32SLAny
 
 	if xadd32(&p.lock, setR)&maskR == 0 {
 		return true
@@ -197,7 +197,7 @@ func (p *PMutex) tryWLock() bool {
 }
 
 func (p *PMutex) WLock() {
-	const setR = PLOCK32_WL_1 | PLOCK32_SL_1 | PLOCK32_RL_1
+	const setR = plock32WL1 | plock32SL1 | plock32RL1
 
 	// acquire lock
 	for {
@@ -220,24 +220,24 @@ func (p *PMutex) WLock() {
 }
 
 func (p *PMutex) WUnlock() {
-	const val = PLOCK32_WL_1 | PLOCK32_SL_1 | PLOCK32_RL_1
+	const val = plock32WL1 | plock32SL1 | plock32RL1
 	_ = subUint32(&p.lock, val)
 }
 
 func (p *PMutex) WToR() {
-	const val = PLOCK32_WL_1 | PLOCK32_SL_1
+	const val = plock32WL1 | plock32SL1
 	_ = subUint32(&p.lock, val)
 }
 
 func (p *PMutex) WToS() {
-	const val = PLOCK32_WL_1
+	const val = plock32WL1
 	_ = subUint32(&p.lock, val)
 }
 
 //go:nosplit
 func (p *PMutex) trySLock() bool {
-	const setR = PLOCK32_SL_1 | PLOCK32_RL_1
-	const maskR = PLOCK32_WL_ANY | PLOCK32_SL_ANY
+	const setR = plock32SL1 | plock32RL1
+	const maskR = plock32WLAny | plock32SLAny
 	if atomic.LoadUint32(&p.lock)&maskR == 0 {
 		if xadd32(&p.lock, setR) == 0 {
 			return true
@@ -257,19 +257,19 @@ func (p *PMutex) SLock() {
 }
 
 func (p *PMutex) SUnlock() {
-	const val = PLOCK32_SL_1 + PLOCK32_RL_1
+	const val = plock32SL1 + plock32RL1
 	_ = subUint32(&p.lock, val)
 }
 
 func (p *PMutex) SToR() {
-	const val = PLOCK32_SL_1
+	const val = plock32SL1
 	_ = subUint32(&p.lock, val)
 }
 
 func (p *PMutex) SToW() {
-	t := xadd32(&p.lock, PLOCK32_WL_1)
+	t := xadd32(&p.lock, plock32WL1)
 	for {
-		if t&PLOCK32_RL_ANY != PLOCK32_RL_1 {
+		if t&plock32RLAny != plock32RL1 {
 			t = atomic.LoadUint32(&p.lock)
 		}
 	}
@@ -277,8 +277,8 @@ func (p *PMutex) SToW() {
 
 //go:nosplit
 func (p *PMutex) tryALock() bool {
-	const setR = PLOCK32_WL_1
-	const maskR = PLOCK32_SL_ANY
+	const setR = plock32WL1
+	const maskR = plock32SLAny
 
 	plr := atomic.LoadUint32(&p.lock) & maskR
 	if plr == 0 {
@@ -288,7 +288,7 @@ func (p *PMutex) tryALock() bool {
 				_ = subUint32(&p.lock, setR)
 				break
 			}
-			plr &= PLOCK32_RL_ANY
+			plr &= plock32RLAny
 			if plr == 0 {
 				break
 			}
@@ -309,6 +309,6 @@ func (p *PMutex) ALock() {
 }
 
 func (p *PMutex) AUnlock() {
-	const val = PLOCK32_WL_1
+	const val = plock32WL1
 	_ = subUint32(&p.lock, val)
 }

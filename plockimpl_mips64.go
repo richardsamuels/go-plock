@@ -27,9 +27,9 @@ func (p *PMutex) String() string {
 		return addr + " U"
 	}
 
-	hasWriter := v&PLOCK64_WL_ANY != 0
-	hasSeeker := v&PLOCK64_SL_ANY != 0
-	hasReader := v&PLOCK64_RL_ANY != 0
+	hasWriter := v&plock64WLAny != 0
+	hasSeeker := v&plock64SLAny != 0
+	hasReader := v&plock64RLAny != 0
 
 	numReaders := (v << leftShiftVal) >> rightShiftVal
 	if hasWriter && !hasSeeker && !hasReader {
@@ -66,8 +66,8 @@ func (p *PMutex) String() string {
 
 //go:nosplit
 func (p *PMutex) tryRLock() bool {
-	const setR = PLOCK64_RL_1
-	const maskR = PLOCK64_WL_ANY
+	const setR = plock64RL1
+	const maskR = plock64WLAny
 
 	// Since all writes to this value are atomic, load is unnecessary,
 	// but it makes the race detector happy
@@ -93,21 +93,21 @@ func (p *PMutex) RLock() {
 }
 
 func (p *PMutex) RUnlock() {
-	const val = PLOCK64_RL_1
+	const val = plock64RL1
 	_ = subUint64(&p.lock, val)
 }
 
 func (p *PMutex) tryRToA() bool {
-	plr := atomic.LoadUint64(&p.lock) & PLOCK64_SL_ANY
+	plr := atomic.LoadUint64(&p.lock) & plock64SLAny
 	if plr == 0 {
-		plr = xadd64(&p.lock, PLOCK64_WL_1-PLOCK64_RL_1)
+		plr = xadd64(&p.lock, plock64WL1-plock64RL1)
 		for {
-			if plr&PLOCK64_SL_ANY != 0 {
-				_ = subUint64(&p.lock, PLOCK64_WL_1-PLOCK64_RL_1)
+			if plr&plock64SLAny != 0 {
+				_ = subUint64(&p.lock, plock64WL1-plock64RL1)
 				break
 			}
 
-			plr &= PLOCK64_RL_ANY
+			plr &= plock64RLAny
 			if plr != 0 {
 				break
 			}
@@ -129,8 +129,8 @@ func (p *PMutex) RToA() {
 }
 
 func (p *PMutex) tryRToW() bool {
-	const setR = PLOCK64_WL_1 | PLOCK64_SL_1
-	const maskR = PLOCK64_WL_ANY | PLOCK64_SL_ANY
+	const setR = plock64WL1 | plock64SL1
+	const maskR = plock64WLAny | plock64SLAny
 	var plr uint64
 	for {
 		plr = xadd64(&p.lock, setR)
@@ -142,7 +142,7 @@ func (p *PMutex) tryRToW() bool {
 		}
 
 		for plr != 0 {
-			plr = atomic.LoadUint64(&p.lock) - (PLOCK64_WL_1 | PLOCK64_SL_1 | PLOCK64_RL_1) //nolint:megacheck
+			plr = atomic.LoadUint64(&p.lock) - (plock64WL1 | plock64SL1 | plock64RL1) //nolint:megacheck
 			break
 		}
 	}
@@ -162,10 +162,10 @@ func (p *PMutex) RToW() {
 
 func (p *PMutex) tryRToS() bool {
 	plr := atomic.LoadUint64(&p.lock)
-	if plr&(PLOCK64_WL_ANY|PLOCK64_SL_ANY) == 0 {
-		plr = xadd64(&p.lock, PLOCK64_SL_1) & (PLOCK64_WL_ANY | PLOCK64_SL_ANY)
+	if plr&(plock64WLAny|plock64SLAny) == 0 {
+		plr = xadd64(&p.lock, plock64SL1) & (plock64WLAny | plock64SLAny)
 		if plr != 0 {
-			_ = subUint64(&p.lock, PLOCK64_SL_1)
+			_ = subUint64(&p.lock, plock64SL1)
 		}
 
 	}
@@ -185,8 +185,8 @@ func (p *PMutex) RToS() {
 
 //go:nosplit
 func (p *PMutex) tryWLock() bool {
-	const setR = PLOCK64_WL_1 | PLOCK64_SL_1 | PLOCK64_RL_1
-	const maskR = PLOCK64_WL_ANY | PLOCK64_SL_ANY
+	const setR = plock64WL1 | plock64SL1 | plock64RL1
+	const maskR = plock64WLAny | plock64SLAny
 
 	if xadd64(&p.lock, setR)&maskR == 0 {
 		return true
@@ -197,7 +197,7 @@ func (p *PMutex) tryWLock() bool {
 }
 
 func (p *PMutex) WLock() {
-	const setR = PLOCK64_WL_1 | PLOCK64_SL_1 | PLOCK64_RL_1
+	const setR = plock64WL1 | plock64SL1 | plock64RL1
 
 	// acquire lock
 	for {
@@ -220,24 +220,24 @@ func (p *PMutex) WLock() {
 }
 
 func (p *PMutex) WUnlock() {
-	const val = PLOCK64_WL_1 | PLOCK64_SL_1 | PLOCK64_RL_1
+	const val = plock64WL1 | plock64SL1 | plock64RL1
 	_ = subUint64(&p.lock, val)
 }
 
 func (p *PMutex) WToR() {
-	const val = PLOCK64_WL_1 | PLOCK64_SL_1
+	const val = plock64WL1 | plock64SL1
 	_ = subUint64(&p.lock, val)
 }
 
 func (p *PMutex) WToS() {
-	const val = PLOCK64_WL_1
+	const val = plock64WL1
 	_ = subUint64(&p.lock, val)
 }
 
 //go:nosplit
 func (p *PMutex) trySLock() bool {
-	const setR = PLOCK64_SL_1 | PLOCK64_RL_1
-	const maskR = PLOCK64_WL_ANY | PLOCK64_SL_ANY
+	const setR = plock64SL1 | plock64RL1
+	const maskR = plock64WLAny | plock64SLAny
 	if atomic.LoadUint64(&p.lock)&maskR == 0 {
 		if xadd64(&p.lock, setR) == 0 {
 			return true
@@ -257,19 +257,19 @@ func (p *PMutex) SLock() {
 }
 
 func (p *PMutex) SUnlock() {
-	const val = PLOCK64_SL_1 + PLOCK64_RL_1
+	const val = plock64SL1 + plock64RL1
 	_ = subUint64(&p.lock, val)
 }
 
 func (p *PMutex) SToR() {
-	const val = PLOCK64_SL_1
+	const val = plock64SL1
 	_ = subUint64(&p.lock, val)
 }
 
 func (p *PMutex) SToW() {
-	t := xadd64(&p.lock, PLOCK64_WL_1)
+	t := xadd64(&p.lock, plock64WL1)
 	for {
-		if t&PLOCK64_RL_ANY != PLOCK64_RL_1 {
+		if t&plock64RLAny != plock64RL1 {
 			t = atomic.LoadUint64(&p.lock)
 		}
 	}
@@ -277,8 +277,8 @@ func (p *PMutex) SToW() {
 
 //go:nosplit
 func (p *PMutex) tryALock() bool {
-	const setR = PLOCK64_WL_1
-	const maskR = PLOCK64_SL_ANY
+	const setR = plock64WL1
+	const maskR = plock64SLAny
 
 	plr := atomic.LoadUint64(&p.lock) & maskR
 	if plr == 0 {
@@ -288,7 +288,7 @@ func (p *PMutex) tryALock() bool {
 				_ = subUint64(&p.lock, setR)
 				break
 			}
-			plr &= PLOCK64_RL_ANY
+			plr &= plock64RLAny
 			if plr == 0 {
 				break
 			}
@@ -309,6 +309,6 @@ func (p *PMutex) ALock() {
 }
 
 func (p *PMutex) AUnlock() {
-	const val = PLOCK64_WL_1
+	const val = plock64WL1
 	_ = subUint64(&p.lock, val)
 }

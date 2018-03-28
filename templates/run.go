@@ -37,9 +37,10 @@ func gen(bytes []byte, arch string) {
 	}
 	defer out.Close()
 
+	split := strings.SplitN(string(b), "\n\n", 2)
 	half := archWordSize[arch] / 2
 
-	s := strings.Replace(string(b), "0 //leftShiftVal", fmt.Sprintf("%d", half), 1)
+	s := strings.Replace(split[1], "0 //leftShiftVal", fmt.Sprintf("%d", half), 1)
 	s = strings.Replace(s, "0 //rightShiftVal", fmt.Sprintf("%d", half+2), 1)
 	s = strings.Replace(s, "64", fmt.Sprintf("%d", archWordSize[arch]), -1)
 
