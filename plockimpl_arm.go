@@ -8,8 +8,13 @@ import (
 )
 
 type PMutex struct {
-    lock uint32
+	lock uint32
 }
+
+const (
+	leftShiftVal  = 16
+	rightShiftVal = 18
+)
 
 // String returns a string representing the internal lock state
 // The string built by this function reflects a single moment in time,
@@ -26,9 +31,9 @@ func (p *PMutex) String() string {
 	hasSeeker := v&PLOCK32_SL_ANY != 0
 	hasReader := v&PLOCK32_RL_ANY != 0
 
-	numReaders := (v << 16) >> 18
+	numReaders := (v << leftShiftVal) >> rightShiftVal
 	if hasWriter && !hasSeeker && !hasReader {
-		numWriters := v >> 18
+		numWriters := v >> rightShiftVal
 		return fmt.Sprintf("%s A; writers: %d", addr, numWriters)
 	}
 
@@ -233,7 +238,7 @@ func (p *PMutex) WToS() {
 func (p *PMutex) trySLock() bool {
 	const setR = PLOCK32_SL_1 | PLOCK32_RL_1
 	const maskR = PLOCK32_WL_ANY | PLOCK32_SL_ANY
-	if atomic.LoadUint32(&p.lock) & maskR == 0  {
+	if atomic.LoadUint32(&p.lock)&maskR == 0 {
 		if xadd32(&p.lock, setR) == 0 {
 			return true
 		}
@@ -307,5 +312,3 @@ func (p *PMutex) AUnlock() {
 	const val = PLOCK32_WL_1
 	_ = subUint32(&p.lock, val)
 }
-
-// vim: ft=go

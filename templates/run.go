@@ -7,11 +7,10 @@ import (
 	"io/ioutil"
 	"os"
 	"strings"
-	"text/template"
 )
 
 func main() {
-	bytes, err := ioutil.ReadFile("./templates/plock.go.tmpl")
+	bytes, err := ioutil.ReadFile("./templates/plock.go")
 	if err != nil {
 		panic(err)
 	}
@@ -38,12 +37,19 @@ func gen(bytes []byte, arch string) {
 	}
 	defer out.Close()
 
-	s := strings.Replace(string(b), "64", fmt.Sprintf("%d", archWordSize[arch]), -1)
-	temp := template.Must(template.New("").Parse(s))
-	temp.Execute(out, tmpl{
-		LeftShift:  (archWordSize[arch]) / 2,
-		RightShift: (archWordSize[arch] / 2) + 2,
-	})
+	half := archWordSize[arch] / 2
+
+	s := strings.Replace(string(b), "0 //leftShiftVal", fmt.Sprintf("%d", half), 1)
+	s = strings.Replace(s, "0 //rightShiftVal", fmt.Sprintf("%d", half+2), 1)
+	s = strings.Replace(s, "64", fmt.Sprintf("%d", archWordSize[arch]), -1)
+
+	n, err := out.Write([]byte(s))
+	if n != len([]byte(s)) {
+		panic("didn't write correct # of bytes")
+	}
+	if err != nil {
+		panic(err)
+	}
 }
 
 type tmpl struct {
