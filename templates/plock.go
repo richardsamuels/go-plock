@@ -9,6 +9,14 @@ import (
 	"sync/atomic"
 )
 
+// PMutex is an implementation of Willy Tarreau's Progressive locks (full post
+// at: http://wtarreau.blogspot.com/2018/02/progressive-locks-fast-upgradable.html)
+
+// Progressive locks offer the conventional Read and Write locks of sync.RWMutex,
+// but offer 2 additional states: Atomic Write Lock, allowing for multiple writers,
+// that have the obligation to interact with protected data atomically; and
+// Seek Lock, which is an exclusive reader that can quickly upgrade its lock
+// to Write
 type PMutex struct {
 	lock uint64
 }
@@ -84,6 +92,8 @@ func (p *PMutex) tryRLock() bool {
 	return false
 }
 
+// RLock acquires a Read lock. This method will block until the lock is acquired,
+// yielding the goroutine to the scheduler after every failure to acquire
 func (p *PMutex) RLock() {
 	for {
 		if p.tryRLock() {
@@ -94,6 +104,7 @@ func (p *PMutex) RLock() {
 	}
 }
 
+// RUnlock releases an existing Read Lock
 func (p *PMutex) RUnlock() {
 	const val = plock64RL1
 	_ = subUint64(&p.lock, val)
@@ -120,6 +131,7 @@ func (p *PMutex) tryRToA() bool {
 	return plr != 0
 }
 
+// RToA upgrades an existing Read Lock to an Atomic Write Lock
 func (p *PMutex) RToA() {
 	for {
 		if p.tryRToA() {
@@ -152,6 +164,7 @@ func (p *PMutex) tryRToW() bool {
 	return plr == 0
 }
 
+// RToW upgrades an existing Read Lock to a Write Lock.
 func (p *PMutex) RToW() {
 	for {
 		if p.tryRToW() {
@@ -175,6 +188,7 @@ func (p *PMutex) tryRToS() bool {
 	return plr == 0
 }
 
+// RToS upgrades an existing Read Lock to a Seek Lock
 func (p *PMutex) RToS() {
 	for {
 		if p.tryRToS() {
@@ -198,6 +212,7 @@ func (p *PMutex) tryWLock() bool {
 	return false
 }
 
+// WLock acquires a Write Lock, blocking until all current readers unlock
 func (p *PMutex) WLock() {
 	const setR = plock64WL1 | plock64SL1 | plock64RL1
 
@@ -221,16 +236,19 @@ func (p *PMutex) WLock() {
 	}
 }
 
+// WUnlock releases an existing Write Lock.
 func (p *PMutex) WUnlock() {
 	const val = plock64WL1 | plock64SL1 | plock64RL1
 	_ = subUint64(&p.lock, val)
 }
 
+// WToR downgrades an existing Write Lock to a Read Lock
 func (p *PMutex) WToR() {
 	const val = plock64WL1 | plock64SL1
 	_ = subUint64(&p.lock, val)
 }
 
+// WToR downgrades an existing Write Lock to a Seek Lock
 func (p *PMutex) WToS() {
 	const val = plock64WL1
 	_ = subUint64(&p.lock, val)
@@ -249,6 +267,8 @@ func (p *PMutex) trySLock() bool {
 	return false
 }
 
+// SLock acquires a Seek Lock. This state allows for an exclusive reader,
+// which has the ability to quickly upgrade to a Write Lock if needed
 func (p *PMutex) SLock() {
 	for {
 		if p.trySLock() {
@@ -258,16 +278,19 @@ func (p *PMutex) SLock() {
 	}
 }
 
+// SUnlock releases an existing Seek Lock
 func (p *PMutex) SUnlock() {
 	const val = plock64SL1 + plock64RL1
 	_ = subUint64(&p.lock, val)
 }
 
+// SToR downgrades an existing Seek Lock to a Read Lock
 func (p *PMutex) SToR() {
 	const val = plock64SL1
 	_ = subUint64(&p.lock, val)
 }
 
+// SToR upgrades an existing Seek Lock to a Write Lock
 func (p *PMutex) SToW() {
 	t := xadd64(&p.lock, plock64WL1)
 	for {
@@ -301,6 +324,8 @@ func (p *PMutex) tryALock() bool {
 	return plr == 0
 }
 
+// ALock acquires an Atomic Write Lock. Atomic Write allows for multiple writers,
+// however all writers must access the shared data atomically (ex: sync/atomic.*)
 func (p *PMutex) ALock() {
 	for {
 		if p.tryALock() {
@@ -310,6 +335,7 @@ func (p *PMutex) ALock() {
 	}
 }
 
+// AUnlock releases an Atomic Write Lock
 func (p *PMutex) AUnlock() {
 	const val = plock64WL1
 	_ = subUint64(&p.lock, val)

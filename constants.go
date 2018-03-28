@@ -2,6 +2,7 @@
 
 package plock
 
+// nolint: megacheck, varcheck
 const (
 	plock32RL1   uint32 = 0x00000004
 	plock32RLAny uint32 = 0x0000FFFC
@@ -11,6 +12,7 @@ const (
 	plock32WLAny uint32 = 0xFFFC0000
 )
 
+// nolint: megacheck, varcheck
 const (
 	plock64RL1   uint64 = 0x0000000000000004
 	plock64RLAny uint64 = 0x00000000FFFFFFFC
